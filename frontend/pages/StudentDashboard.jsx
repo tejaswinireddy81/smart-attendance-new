@@ -16,7 +16,7 @@ function StudentDashboard({ user, onLogout }) {
   const videoRef = useRef(null);
   
   const [attendanceMarked, setAttendanceMarked] = useState(false);
-  const [markedSessionId, setMarkedSessionId] = useState(null); // Track only the last marked session
+  const [markedSessionId, setMarkedSessionId] = useState(null);
   const [loading, setLoading] = useState(false);
   
   const [showHistory, setShowHistory] = useState(false);
@@ -33,12 +33,10 @@ function StudentDashboard({ user, onLogout }) {
         if (response.ok) {
           const data = await response.json();
           if (data.active) {
-            // If this is a NEW session (different from the one we just marked)
             if (data.session_id !== markedSessionId) {
               setAttendanceActive(true);
               setCurrentSession(data);
               
-              // Reset states for new session
               if (!currentSession || currentSession.session_id !== data.session_id) {
                 setAttendanceMarked(false);
                 setStep(1);
@@ -48,7 +46,6 @@ function StudentDashboard({ user, onLogout }) {
                 setFaceVerified(false);
               }
             } else {
-              // This is the same session we just completed
               setAttendanceActive(false);
             }
           } else {
@@ -199,7 +196,7 @@ function StudentDashboard({ user, onLogout }) {
       if (response.ok && data.verified) {
         setFaceVerified(true);
         alert("✅ Face verified!");
-        await markAttendance();
+        await markAttendance(imageData);  // Pass imageData to markAttendance
       } else {
         alert("❌ Face verification failed. Please try again.");
       }
@@ -211,9 +208,19 @@ function StudentDashboard({ user, onLogout }) {
     }
   };
 
-  const markAttendance = async () => {
+  const markAttendance = async (faceImage) => {  // Accept faceImage parameter
     try {
       const token = localStorage.getItem("token");
+      
+      // Capture face image from video if not provided
+      let imageToSend = faceImage;
+      if (!imageToSend && videoRef.current && videoRef.current.srcObject) {
+        const canvas = document.createElement('canvas');
+        canvas.width = videoRef.current.videoWidth;
+        canvas.height = videoRef.current.videoHeight;
+        canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
+        imageToSend = canvas.toDataURL('image/jpeg');
+      }
       
       const response = await fetch("http://localhost:5000/attendance/mark", {
         method: "POST",
@@ -224,14 +231,14 @@ function StudentDashboard({ user, onLogout }) {
         body: JSON.stringify({
           session_id: currentSession.session_id,
           location: location,
-          student_id: user.name
+          student_id: user.name,
+          face_image: imageToSend  // <-- SEND FACE IMAGE
         })
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // Store this session ID as the last marked one
         setMarkedSessionId(currentSession.session_id);
         setAttendanceMarked(true);
         setStep(4);
@@ -243,7 +250,7 @@ function StudentDashboard({ user, onLogout }) {
         
         alert("🎉 Attendance marked successfully!");
       } else {
-        alert(data.message || "Failed to mark attendance");
+        alert(data.detail || data.message || "Failed to mark attendance");
       }
     } catch (error) {
       alert("Error marking attendance");
@@ -262,13 +269,12 @@ function StudentDashboard({ user, onLogout }) {
     setLocationVerified(false);
     setCameraActive(false);
     setFaceVerified(false);
-    // Don't clear markedSessionId - keep it to prevent re-showing same session
   };
 
   return (
     <div className="dashboard">
       <div className="dashboard-header">
-        <h2>Welcome, {user.name}!</h2>
+        <h2>Welcome, {user.name} ({user.usn})!</h2>
         <button onClick={onLogout} className="btn-danger">Logout</button>
       </div>
 
