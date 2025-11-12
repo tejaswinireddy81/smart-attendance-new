@@ -1,6 +1,7 @@
 import { useState } from "react";
 import QRCode from "react-qr-code";
 import TeacherAttendanceView from "./TeacherAttendanceView";
+import TeacherOverride from "./TeacherOverride";
 
 function TeacherDashboard({ user, onLogout }) {
   const [attendanceActive, setAttendanceActive] = useState(false);
@@ -9,28 +10,37 @@ function TeacherDashboard({ user, onLogout }) {
   const [sessionId, setSessionId] = useState("");
   const [loading, setLoading] = useState(false);
   const [showAttendanceView, setShowAttendanceView] = useState(false);
+  const [showOverride, setShowOverride] = useState(false);
   const [currentSession, setCurrentSession] = useState(null);
 
-  // ✅ YOUR NEW SUBJECTS
-  const subjects = [
-    "Software Engineering and Project Management",
-    "Computer Networks",
-    "Theory of Computation",
-    "Web Technology Lab",
-    "Artificial Intelligence",
-    "Research Methodology and IPR"
-  ];
+  // ✅ Subjects mapped to each teacher
+  const subjectsByTeacher = {
+    T001: [
+      "Software Engineering and Project Management",
+      "Computer Networks",
+      "Theory of Computation"
+    ],
+    T002: [
+      "Web Technology Lab",
+      "Artificial Intelligence",
+      "Research Methodology and IPR"
+    ]
+  };
 
-  // If viewing attendance, show that component
+  // Pick subjects for current logged-in teacher
+  const subjects = subjectsByTeacher[user.usn] || [];
+
+  // Show attendance view page
   if (showAttendanceView && currentSession) {
     return (
-      <TeacherAttendanceView 
-        session={currentSession} 
-        onBack={() => setShowAttendanceView(false)} 
+      <TeacherAttendanceView
+        session={currentSession}
+        onBack={() => setShowAttendanceView(false)}
       />
     );
   }
 
+  // 🟩 Start attendance session
   const handleStartAttendance = async () => {
     if (!selectedSubject) {
       alert("Please select a subject first!");
@@ -38,10 +48,9 @@ function TeacherDashboard({ user, onLogout }) {
     }
 
     setLoading(true);
-
     try {
       const token = localStorage.getItem("token");
-      
+
       const response = await fetch("http://localhost:5000/qr/generate", {
         method: "POST",
         headers: {
@@ -62,7 +71,7 @@ function TeacherDashboard({ user, onLogout }) {
           subject: selectedSubject,
           timestamp: Date.now()
         };
-        
+
         setSessionId(data.session_id);
         setQrValue(JSON.stringify(qrData));
         setAttendanceActive(true);
@@ -83,10 +92,11 @@ function TeacherDashboard({ user, onLogout }) {
     }
   };
 
+  // 🟥 Stop attendance session
   const handleStopAttendance = async () => {
     try {
       const token = localStorage.getItem("token");
-      
+
       const response = await fetch("http://localhost:5000/qr/stop", {
         method: "POST",
         headers: {
@@ -110,12 +120,19 @@ function TeacherDashboard({ user, onLogout }) {
     }
   };
 
+  // 📋 View live attendance
   const handleViewAttendance = () => {
     if (currentSession) {
       setShowAttendanceView(true);
     }
   };
 
+  // ✏️ Manual override handler
+  const handleManualOverride = () => {
+    setShowOverride(true);
+  };
+
+  // 🧱 UI
   return (
     <div className="dashboard">
       <div className="dashboard-header">
@@ -130,7 +147,7 @@ function TeacherDashboard({ user, onLogout }) {
 
       <div className="attendance-section card">
         <h3>Start Attendance Session</h3>
-        
+
         {!attendanceActive ? (
           <div className="subject-select">
             <label htmlFor="subject">Select Subject:</label>
@@ -148,12 +165,21 @@ function TeacherDashboard({ user, onLogout }) {
               ))}
             </select>
 
-            <button 
+            <button
               onClick={handleStartAttendance}
               disabled={loading || !selectedSubject}
               className="btn-success mt-2"
             >
               {loading ? "Starting..." : "🚀 Start Attendance"}
+            </button>
+
+            {/* Manual override button */}
+            <button
+              onClick={handleManualOverride}
+              className="btn-warning mt-2"
+              style={{ marginLeft: "10px" }}
+            >
+              ✏️ Manual Attendance Override
             </button>
           </div>
         ) : (
@@ -162,13 +188,13 @@ function TeacherDashboard({ user, onLogout }) {
             <p className="info-message">
               Students can now scan this QR code to mark attendance
             </p>
-            
+
             <div className="qr-display">
-              <QRCode 
-                value={qrValue} 
+              <QRCode
+                value={qrValue}
                 size={256}
-                style={{ 
-                  margin: "20px auto", 
+                style={{
+                  margin: "20px auto",
                   display: "block",
                   border: "10px solid white",
                   boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
@@ -182,15 +208,15 @@ function TeacherDashboard({ user, onLogout }) {
             </div>
 
             <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
-              <button 
+              <button
                 onClick={handleViewAttendance}
                 className="btn-success mt-3"
                 style={{ flex: 1 }}
               >
                 📋 View Live Attendance
               </button>
-              
-              <button 
+
+              <button
                 onClick={handleStopAttendance}
                 className="btn-danger mt-3"
                 style={{ flex: 1 }}
@@ -207,6 +233,14 @@ function TeacherDashboard({ user, onLogout }) {
         <button className="mt-2" disabled>View All Attendance Records</button>
         <button className="mt-2" disabled>Generate Reports</button>
       </div>
+
+      {/* Show Manual Override Modal */}
+      {showOverride && (
+        <TeacherOverride
+          teacher={user}
+          onClose={() => setShowOverride(false)}
+        />
+      )}
     </div>
   );
 }
