@@ -58,42 +58,44 @@ function FaceRegistration({ user, onBack, onSuccess }) {
   };
 
   const handleRegister = async () => {
-    if (!capturedImage) {
-      alert("Please capture your face first!");
-      return;
+  if (!capturedImage) {
+    alert("Please capture your face first!");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const token = localStorage.getItem("token");
+    
+    const response = await fetch("http://localhost:5000/face-registration/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        image: capturedImage,
+        user_id: user.name
+      })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert("🎉 Face registered successfully!");
+      if (onSuccess) onSuccess();
+    } else {
+      alert("❌ " + (data.detail || "Failed to register face"));
     }
+  } catch (error) {
+    console.error("Registration error:", error);
+    alert("❌ Error registering face");
+  } finally {
+    setLoading(false);
+  }
+};
 
-    setLoading(true);
-
-    try {
-      const token = localStorage.getItem("token");
-      
-      const response = await fetch("http://localhost:5000/face/register-face-base64", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          image: capturedImage
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        alert("🎉 Face registered successfully!");
-        if (onSuccess) onSuccess();
-      } else {
-        alert("❌ " + (data.detail || "Failed to register face"));
-      }
-    } catch (error) {
-      console.error("Registration error:", error);
-      alert("❌ Error registering face");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="dashboard">
