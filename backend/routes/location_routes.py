@@ -1,40 +1,52 @@
+# routes/location_routes.py
+
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from utils.db import SessionLocal
-from models.classroom_model import Classroom
-import math
+from utils.jwt_token import verify_token
+from utils.db import get_db
+from sqlalchemy.orm import Session
 
 router = APIRouter()
 
-def get_db():
-    db = SessionLocal()
+# ---------------------------------------------------
+# TEMPORARY CLASSROOM LOCATION (you can update later)
+# ---------------------------------------------------
+CLASSROOM_LAT = 12.934533  
+CLASSROOM_LNG = 77.605000  
+ALLOWED_RADIUS = 0.0009     # ~100 meters
+
+
+@router.get("/verify")
+def verify_location(lat: float, lng: float, token=Depends(verify_token)):
+    """
+    Verify if student is inside classroom allowed range.
+    Uses simple coordinate distance comparison (not full Haversine).
+    """
+
     try:
-        yield db
-    finally:
-        db.close()
+        lat_diff = abs(lat - CLASSROOM_LAT)
+        lng_diff = abs(lng - CLASSROOM_LNG)
 
-class LocationPayload(BaseModel):
-    classroom_id: int
-    lat: float
-    lon: float
+        inside = lat_diff <= ALLOWED_RADIUS and lng_diff <= ALLOWED_RADIUS
 
-def haversine_km(lat1, lon1, lat2, lon2):
-    # returns distance in meters
-    R = 6371000
-    import math
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
-    c = 2*math.atan2(math.sqrt(a), math.sqrt(1-a))
-    return R * c
+        return {
+            "inside_classroom": inside,
+            "lat_diff": lat_diff,
+            "lng_diff": lng_diff
+        }
 
-@router.post("/verify")
-def verify_location(payload: LocationPayload, db=Depends(get_db)):
-    classroom = db.query(Classroom).filter(Classroom.id == payload.classroom_id).first()
-    if not classroom:
-        raise HTTPException(status_code=404, detail="Classroom not found")
-    dist_m = haversine_km(payload.lat, payload.lon, classroom.lat, classroom.lon)
-    allowed_radius = 50  # meters; tune as needed
-    return {"distance_m": dist_m, "within_radius": dist_m <= allowed_radius}
+    except Exception as e:
+        print("❌ Location verify error:", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/classroom-location")
+def get_classroom_location(token=Depends(verify_token)):
+    """
+    Return classroom coordinates to frontend.
+    """
+
+    return {
+        "latitude": CLASSROOM_LAT,
+        "longitude": CLASSROOM_LNG,
+        "radius": ALLOWED_RADIUS
+    }
