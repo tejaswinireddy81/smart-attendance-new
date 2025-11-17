@@ -9,15 +9,13 @@ function Login({ onLogin, error }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate inputs
     if (!email.trim()) {
       alert("Please enter your email");
       return;
     }
 
-    // Optional: Email format validation (simple)
     if (!/\S+@\S+\.\S+/.test(email)) {
-      alert("Please enter a valid email address");
+      alert("Please enter a valid email");
       return;
     }
 
@@ -26,27 +24,27 @@ function Login({ onLogin, error }) {
       return;
     }
 
-    // Set loading state
     setIsLoading(true);
 
-    // Call the login handler from App.jsx
     await onLogin(email, password, role);
 
-    // Reset loading state
     setIsLoading(false);
   };
 
   return (
     <div className="login-container">
       <div className="login-box">
+
         <h2>Smart Attendance System</h2>
         <p className="login-subtitle">Please login to continue</p>
 
         {error && <div className="error-message">{error}</div>}
 
         <form onSubmit={handleSubmit} className="login-form">
+          
+          {/* ROLE SELECT */}
           <div className="form-group">
-            <label htmlFor="role">Select Role</label>
+            <label htmlFor="role">Role</label>
             <select
               id="role"
               value={role}
@@ -59,6 +57,7 @@ function Login({ onLogin, error }) {
             </select>
           </div>
 
+          {/* EMAIL */}
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input
@@ -73,6 +72,7 @@ function Login({ onLogin, error }) {
             />
           </div>
 
+          {/* PASSWORD */}
           <div className="form-group">
             <label htmlFor="password">Password</label>
             <input
@@ -87,8 +87,9 @@ function Login({ onLogin, error }) {
             />
           </div>
 
-          <button 
-            type="submit" 
+          {/* LOGIN BUTTON */}
+          <button
+            type="submit"
             className="btn-login"
             disabled={isLoading}
           >
@@ -99,6 +100,7 @@ function Login({ onLogin, error }) {
         <div className="login-info">
           <p>💡 Use your email to access the system</p>
         </div>
+
       </div>
     </div>
   );
