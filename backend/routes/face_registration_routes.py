@@ -1,119 +1,68 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+# routes/face_registration_routes.py
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 from utils.jwt_token import verify_token
-from utils.db import SessionLocal
+from utils.db import get_db
 from models.user_model import User
 import base64
 import os
-from PIL import Image
-from io import BytesIO
+from datetime import datetime
 
 router = APIRouter()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Schema for receiving the face image from frontend
+class FaceRegisterSchema(BaseModel):
+    image: str
+    user_id: str
 
-@router.post("/register-face")
-async def register_face(
-    file: UploadFile = File(...),
-    token: dict = Depends(verify_token),
-    db = Depends(get_db)
-):
-    """Register a student's face for future verification"""
+
+@router.post("/register")
+def register_face(payload: FaceRegisterSchema, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
+    """
+    Save a user's face image to the face_data folder.
+    This will be used for future DeepFace verification.
+    """
+
     try:
-        # Get USN from token
-        user_usn = token.get("usn")
-        
-        if not user_usn:
-            raise HTTPException(status_code=400, detail="Invalid token: missing USN")
-        
-        # Find user by USN
-        user = db.query(User).filter(User.usn == user_usn).first()
-        
+        # Fetch user
+        user = db.query(User).filter(User.name == payload.user_id).first()
+
         if not user:
-            raise HTTPException(status_code=404, detail=f"User not found: {user_usn}")
-        
-        # Read and save the image
-        contents = await file.read()
-        image = Image.open(BytesIO(contents))
-        
-        # Create face_data directory
-        os.makedirs("face_data", exist_ok=True)
-        
-        # Save image with USN as filename
-        image_path = f"face_data/{user.usn}.jpg"
-        image.save(image_path)
-        
-        print(f"✅ Face registered for {user.name} ({user.usn})")
-        
-        return {
-            "success": True,
-            "message": "Face registered successfully",
-            "user": user.name,
-            "usn": user.usn
-        }
-        
-    except Exception as e:
-        print(f"❌ Error registering face: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=404, detail="User not found")
 
-
-@router.post("/register-face-base64")
-async def register_face_base64(
-    image_data: dict,
-    token: dict = Depends(verify_token),
-    db = Depends(get_db)
-):
-    """Register face from base64 encoded image (for webcam capture)"""
-    try:
-        # Get USN from token
-        user_usn = token.get("usn")
-        
-        print(f"🔍 Token data: {token}")
-        print(f"🔍 User USN from token: {user_usn}")
-        
-        if not user_usn:
-            raise HTTPException(status_code=400, detail="Invalid token: missing USN")
-        
-        # Find user by USN
-        user = db.query(User).filter(User.usn == user_usn).first()
-        
-        if not user:
-            print(f"❌ User not found with USN: {user_usn}")
-            raise HTTPException(status_code=404, detail=f"User not found: {user_usn}")
-        
-        print(f"✅ Found user: {user.name} ({user.usn})")
-        
-        # Decode base64 image
-        image_str = image_data.get("image", "")
+        # Decode incoming image
+        image_str = payload.image
         if "," in image_str:
-            image_str = image_str.split(",")[1]
-        
-        image_bytes = base64.b64decode(image_str)
-        image = Image.open(BytesIO(image_bytes))
-        
-        # Create directory and save
-        os.makedirs("face_data", exist_ok=True)
-        image_path = f"face_data/{user.usn}.jpg"
-        image.save(image_path)
-        
-        print(f"✅ Face image saved to: {image_path}")
-        print(f"✅ Face registered for {user.name} ({user.usn})")
-        
+            image_str = image_str.split(",")[1]  # Remove "data:image/jpeg;base64,"
+
+        try:
+            image_bytes = base64.b64decode(image_str)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid image data")
+
+        # Ensure folder exists
+        folder_path = "face_data"
+        os.makedirs(folder_path, exist_ok=True)
+
+        # Save image as <usn>.jpg
+        save_path = os.path.join(folder_path, f"{user.usn}.jpg")
+
+        with open(save_path, "wb") as f:
+            f.write(image_bytes)
+
+        print(f"📸 Face registered for user: {user.name} ({user.usn}) → {save_path}")
+
         return {
             "success": True,
-            "message": "Face registered successfully",
-            "user": user.name,
-            "usn": user.usn
+            "message": "Face registered successfully!",
+            "file": f"{user.usn}.jpg"
         }
-        
-    except HTTPException:
-        raise
+
+    except HTTPException as e:
+        raise e
+
     except Exception as e:
-        print(f"❌ Error registering face: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ Error in face registration: {e}")
         raise HTTPException(status_code=500, detail=str(e))
