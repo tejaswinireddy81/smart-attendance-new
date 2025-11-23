@@ -14,6 +14,30 @@ function TeacherDashboard({ user, onLogout }) {
   const [currentSession, setCurrentSession] = useState(null);
   const [timeLeft, setTimeLeft] = useState(600);
 
+  const [subjects, setSubjects] = useState([]);   // <-- FIXED: DB subjects
+
+  // FETCH SUBJECTS FROM BACKEND
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const token = localStorage.getItem("token");
+
+        const res = await fetch("http://localhost:5000/teacher/subjects", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        const data = await res.json();
+        setSubjects(data.subjects || []);
+      } catch (error) {
+        console.error("Error fetching subjects:", error);
+      }
+    };
+
+    fetchSubjects();
+  }, []);
+
   // TIMER
   useEffect(() => {
     let interval = null;
@@ -31,22 +55,6 @@ function TeacherDashboard({ user, onLogout }) {
 
     return () => clearInterval(interval);
   }, [attendanceActive, timeLeft]);
-
-  // SUBJECTS
-  const subjectsByTeacher = {
-    T001: [
-      "Software Engineering and Project Management",
-      "Computer Networks",
-      "Theory of Computation"
-    ],
-    T002: [
-      "Web Technology Lab",
-      "Artificial Intelligence",
-      "Research Methodology and IPR"
-    ]
-  };
-
-  const subjects = subjectsByTeacher[user.usn] || [];
 
   // RESET UI
   const resetUI = () => {
@@ -149,20 +157,17 @@ function TeacherDashboard({ user, onLogout }) {
   if (showOverride) {
     return (
       <TeacherOverride
-        teacher={user}                 // FIXED: pass full teacher object
-        onClose={() => setShowOverride(false)}  // FIXED: correct close handler
+        teacher={user}
+        onClose={() => setShowOverride(false)}
       />
     );
   }
 
-  // -----------------------------------------------------------
-  // MAIN UI (Centered Layout)
-  // -----------------------------------------------------------
+  // MAIN UI
   return (
     <div style={{ display: "flex", justifyContent: "center", paddingTop: "30px" }}>
       <div style={{ width: "100%", maxWidth: "850px" }}>
 
-        {/* HEADER */}
         <div className="text-center mb-4">
           <h2>Welcome, {user.name}</h2>
           <button onClick={onLogout} className="btn btn-danger mt-2">
@@ -170,13 +175,11 @@ function TeacherDashboard({ user, onLogout }) {
           </button>
         </div>
 
-        {/* DASHBOARD CARD */}
         <div className="card shadow-sm mb-4 p-4 text-center">
           <h4>📊 Teacher Dashboard</h4>
           <p className="text-muted">Start and manage attendance sessions</p>
         </div>
 
-        {/* SESSION CARD */}
         <div className="card shadow-sm mb-4 p-4">
           <h5 className="text-center mb-3">Start Attendance Session</h5>
 
@@ -207,7 +210,6 @@ function TeacherDashboard({ user, onLogout }) {
                   {loading ? "Starting..." : "🚀 Start Attendance"}
                 </button>
 
-                {/* BUTTON SPACING FIX */}
                 <button
                   onClick={() => setShowOverride(true)}
                   className="btn btn-warning ms-3"
@@ -244,7 +246,6 @@ function TeacherDashboard({ user, onLogout }) {
           )}
         </div>
 
-        {/* TOOLS */}
         <div className="card shadow-sm p-4 text-center">
           <h5>📌 Quick Tools</h5>
           <button className="btn btn-secondary mt-2">Generate Reports</button>
