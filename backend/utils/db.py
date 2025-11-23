@@ -32,14 +32,17 @@ SessionLocal = sessionmaker(
 Base = declarative_base()
 
 # -----------------------------------------
-# ⬇️ VERY IMPORTANT: IMPORT MODELS HERE
+# ⬇️ IMPORT ALL MODELS BEFORE CREATE TABLES
 # -----------------------------------------
 from models.user_model import User
+from models.teacher_model import Teacher
+from models.student_model import Student
+from models.classroom_model import Classroom
 from models.attendance_model import Attendance
 from models.active_session import ActiveSession
 
 # -----------------------------------------
-# ⬇️ CREATE ALL TABLES (YOU WERE MISSING THIS)
+# ⬇️ CREATE ALL TABLES
 # -----------------------------------------
 Base.metadata.create_all(bind=engine)
 
