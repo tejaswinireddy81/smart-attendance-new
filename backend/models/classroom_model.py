@@ -4,9 +4,13 @@ from utils.db import Base
 class Classroom(Base):
     __tablename__ = "classrooms"
     id = Column(Integer, primary_key=True, index=True)
-    room_number = Column(String, unique=True, index=True)
+
+    # MUST include length in MySQL
+    room_number = Column(String(50), unique=True, index=True)
+
     # center coords for room (latitude, longitude)
     lat = Column(Float, nullable=False)
     lon = Column(Float, nullable=False)
-    # Optional: path to one or more images used for background recognition (comma-separated)
-    image_paths = Column(String, nullable=True)
+
+    # Optional: images (comma-separated)
+    image_paths = Column(String(255), nullable=True)
