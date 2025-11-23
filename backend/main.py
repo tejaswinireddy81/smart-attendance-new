@@ -9,7 +9,8 @@ from routes import (
     qr_routes,
     location_routes,
     face_registration_routes,
-    teacher_override_routes
+    teacher_override_routes,
+    teacher_routes    # <-- ✅ ADDED THIS LINE
 )
 
 # Initialize FastAPI
@@ -32,6 +33,7 @@ app.include_router(qr_routes.router, prefix="/qr", tags=["QR"])
 app.include_router(location_routes.router, prefix="/location", tags=["Location"])
 app.include_router(face_registration_routes.router, prefix="/face-registration", tags=["Face Registration"])
 app.include_router(teacher_override_routes.router, prefix="/teacher", tags=["Teacher Override"])
+app.include_router(teacher_routes.router, prefix="/teacher", tags=["Teacher"])   # <-- ✅ ADDED THIS LINE
 
 # Root Endpoint
 @app.get("/")
